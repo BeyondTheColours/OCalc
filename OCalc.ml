@@ -73,6 +73,13 @@ let rec eval e =
   |Bracket(e) -> eval e
 ;;
 
+let rec depth tr =
+  match tr with
+  |Num(x) -> 1
+  |Phrase(op, e1, e2) -> max (1+(depth e1)) (1+(depth e2))
+  |Bracket(e1) -> 1 + (depth e1)
+;;
+
 let rec in_list a b =
   match b with
   |[] -> false
@@ -88,6 +95,19 @@ let rec is_number_worker n nums =
 ;;
 
 let is_number n = is_number_worker (ConsString.string_to_cons_string n) ["0";"1";"2";"3";"4";"5";"6";"7";"8";"9"];;
+
+let string_to_eq_list s = 
+  let rec string_to_eq_list_worker s acc temp =
+    match s with
+    |Nil -> if temp = "" then List.rev acc else List.rev(temp::acc)
+    |Cons(c, t) ->
+      let c_ = (Char.escaped c) in
+        if is_number c_ then string_to_eq_list_worker t acc (temp^c_)
+        else
+          if temp = "" then string_to_eq_list_worker t (c_::acc) temp
+          else string_to_eq_list_worker t (c_::temp::acc) ""
+  in string_to_eq_list_worker (ConsString.string_to_cons_string s) [] "" 
+;;
 
 let rm_br eq =
   let rec rm_br_worker eq count res =
@@ -128,8 +148,18 @@ let rec gen_parse_tree eq =
                   |[] -> Phrase(op_from_string h1, numify h, numify h2)(* Pretty sure this is reduntant but the editor disagrees? *)
                   |h3 :: [] -> raise(Invalid_argument("Unexpected end of expression. A number should follow symbol : "^h3))
                   |h3 :: t3 ->
+                    if h2 = "(" then
+                      begin
+                        match rm_br t1 with
+                        |(eq1, []) -> Phrase(op_from_string h1, numify h, Bracket(gen_parse_tree eq1))
+                        |(eq1, h4::t4) ->
+                          let m = Phrase(op_from_string h1, numify h, Bracket(gen_parse_tree eq1)) in
+                          Phrase(op_from_string h4, m, gen_parse_tree t4)
+                      end
+                    else
                       let m = Phrase(op_from_string h1, numify h, numify h2) in
                       Phrase(op_from_string h3, m, gen_parse_tree t3)
+                      
                 end
             else raise(Failure("Expected an operator but found "^h1))
           end
@@ -161,21 +191,55 @@ let rec gen_parse_tree eq =
     end
 ;;
 
-(* Some testing of the current code including visualisation of the parse tree *)
-let test = ["(";"4";"+";"33";")";"*";"(";"7";"+";"2";")"];;
-
-
-let rec string_from_eq_list eq =
-  match eq with
-  |[] -> ""
-  |h::t -> h^(string_from_eq_list t)
+let ( >> ) a b =
+  let rec add_lists a b =
+    match a with
+    |[] -> b
+    |h::t -> add_lists t (h::b)
+  in add_lists (List.rev a) b
 ;;
+
+let find_at_depth d tr =
+  let rec find_at_depth_worker d tr acc =
+  match tr with
+  |Num(x) -> if d = 0 then (Some([Num(x)]>>acc)) else None
+  |Bracket(e) ->
+    if d = 0 then Some(e::acc)
+    else
+      begin
+        match find_at_depth_worker (d-1) e acc with
+        |None -> None
+        |Some(x) -> Some(x >> acc)
+      end
+  |Phrase(op, e1, e2) ->
+    if d = 0 then (Some(e1::e2::acc))
+    else
+      match find_at_depth_worker (d-1) e1 acc with
+      |None ->
+        begin
+          match find_at_depth_worker (d-1) e2 acc with
+          |None -> None
+          |Some(x) -> Some(x >> acc)
+        end
+      |Some(y) ->
+        begin
+          match find_at_depth_worker (d-1) e2 acc with
+          |None -> Some(y >> acc)
+          |Some(x) -> Some(y >> x >> acc)
+        end
+  in find_at_depth_worker d tr []
+;;
+
+(* TODO - finish functions to visualise parse tree *)
+
+let intro = print_endline("Enter your equation: ");;
+let get_test = read_line();;
+
+let test = string_to_eq_list get_test;;
 
 let out = gen_parse_tree test;;
 let tree = draw_tree out;;
 let eval_out = eval out;;
-
-let p_eq = print_endline("\n"^(string_from_eq_list test))
 let p_out = print_endline("= "^(string_of_tree out));;
 let p_tree = print_endline("= "^tree);;
 let p_eval = print_endline("= "^string_of_int eval_out^"\n");;
