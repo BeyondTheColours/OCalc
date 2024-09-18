@@ -2,10 +2,8 @@
 
 Equation solver written in OCaml.
 
-Parses equation as a string input and evaluates it to the correct output.
+Currently takes equation as a string list. Will upgrade to string input with generation string list in the program.
 
-Order of operation multiplication > division > addition > substraction is implemeneted.
-
-Working on dealing with brackets!
+Order of operations brackets > multiplication = division > addition = substraction is implemeneted.
 
 Written for integers so far, will upgrade to floating point numbers.
