@@ -161,6 +161,7 @@ let rec gen_parse_tree eq =
     end
 ;;
 
+(* Some testing of the current code including visualisation of the parse tree *)
 let test = ["(";"4";"+";"33";")";"*";"(";"7";"+";"2";")"];;
 
 
